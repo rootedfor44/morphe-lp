@@ -14,6 +14,7 @@ import app.morphe.manager.data.platform.Filesystem
 import app.morphe.manager.data.platform.NetworkInfo
 import app.morphe.manager.domain.bundles.RemoteBundleServices
 import app.morphe.manager.domain.repository.*
+import app.morphe.manager.lucky.LuckyRepository
 import app.morphe.manager.domain.worker.WorkerRepository
 import app.morphe.manager.network.api.ReleaseAPI
 import app.morphe.manager.util.AppDataResolver
@@ -35,6 +36,7 @@ val repositoryModule = module {
     singleOf(::BlocklistRepository)
     singleOf(::RemoteBundleServices)
     singleOf(::PatchBundleRepository)
+    singleOf(::LuckyRepository)
     singleOf(::WorkerRepository)
     singleOf(::InstalledAppRepository)
     singleOf(::OriginalApkRepository)

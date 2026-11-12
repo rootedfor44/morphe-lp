@@ -18,6 +18,8 @@ import app.morphe.manager.data.platform.Filesystem
 import app.morphe.manager.domain.repository.PatchBundleRepository
 import app.morphe.manager.patcher.DeviceConfig
 import app.morphe.manager.patcher.PatchRequest
+import app.morphe.manager.patcher.lucky.LUCKY_BUNDLE_UID
+import app.morphe.manager.patcher.lucky.LUCKY_PATCHES_DIR
 import app.morphe.manager.patcher.PatchingListener
 import app.morphe.manager.patcher.logger.Logger
 import app.morphe.manager.patcher.patch.optionValueToJson
@@ -91,7 +93,9 @@ class Runtime(
             workspaceDir = context.cacheDir.resolve("patch-workspace").absolutePath,
             bundles = requestedBundles(selectedPatches, options),
             stripUnusedNativeLibs = stripUnusedNativeLibs,
-            device = deviceConfig()
+            device = deviceConfig(),
+            lpPatches = selectedPatches[LUCKY_BUNDLE_UID].orEmpty().toList(),
+            lpRulesDir = context.filesDir.resolve(LUCKY_PATCHES_DIR).absolutePath
         )
         val listener = ProgressReporter(context, logger, onProgress, onPatchCompleted, onPatchFailed, onTaskProgress)
 
@@ -121,7 +125,7 @@ class Runtime(
 
     private suspend fun requestedBundles(selectedPatches: PatchSelection, options: Options) =
         patchBundlesRepo.bundles.first().let { bundles ->
-            selectedPatches.map { (uid, patches) ->
+            selectedPatches.filterKeys { it != LUCKY_BUNDLE_UID }.map { (uid, patches) ->
                 val bundle = bundles[uid] ?: throw IllegalArgumentException("Patch bundle $uid does not exist")
                 PatchRequest.Bundle(
                     uid = uid,

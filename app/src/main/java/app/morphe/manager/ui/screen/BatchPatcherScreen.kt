@@ -326,6 +326,7 @@ fun BatchPatcherScreen(
                         isExpertMode = useExpertMode,
                         savedApkInfo = choice.saved,
                         installedApkInfo = choice.installed,
+                        deviceApkInfo = choice.installed,
                         installedAppVersion = choice.installedVersion,
                         hiddenSourceCount = choice.hiddenSources,
                         onDismiss = viewModel::cancelApkChoice,
@@ -339,7 +340,8 @@ fun BatchPatcherScreen(
                             }
                         },
                         onUseSaved = { viewModel.useApkSource(preferInstalled = false) },
-                        onUseInstalled = { viewModel.useApkSource(preferInstalled = true) }
+                        onUseInstalled = { viewModel.useApkSource(preferInstalled = true) },
+                        onUseDeviceApk = { viewModel.useApkSource(preferInstalled = true) }
                     )
                 }
 

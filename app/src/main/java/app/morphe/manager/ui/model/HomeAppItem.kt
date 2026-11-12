@@ -41,8 +41,15 @@ data class HomeAppItem(
     val patchCount: Int,
     val isClone: Boolean,
     /** What tells the card from another app of the same name, see [withNameSuffixes]. */
-    val nameSuffix: String? = null
+    val nameSuffix: String? = null,
+    /** Whether a bundled Lucky Patcher custom patch names this app. */
+    val hasLuckyPatch: Boolean = false
 ) {
+    /** System apps are hidden from the default Apps list and shown by the System filter. */
+    val isSystemApp: Boolean
+        get() = packageInfo?.applicationInfo?.let {
+            it.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM != 0
+        } ?: false
     val hasSavedCopy: Boolean get() = savedApkFile != null
 
     /**

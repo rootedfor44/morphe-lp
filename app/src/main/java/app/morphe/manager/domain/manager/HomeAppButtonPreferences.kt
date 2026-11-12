@@ -122,6 +122,14 @@ class HomeAppButtonPreferences(context: Context) {
     private val _filterMode = MutableStateFlow(prefs.getString(KEY_FILTER_MODE, null))
     val filterMode: StateFlow<String?> = _filterMode.asStateFlow()
 
+    /**
+     * Whether tapping an app starts the Lucky Patcher shortcut: the APK question is skipped and
+     * the APK installed on the phone is patched straight away. Off by default, so a tap opens
+     * the normal Morphe flow.
+     */
+    private val _lpMode = MutableStateFlow(prefs.getBoolean(KEY_LP_MODE, false))
+    val lpMode: StateFlow<Boolean> = _lpMode.asStateFlow()
+
     private val _categoryState = MutableStateFlow(loadCategoryState())
     val categoryState: StateFlow<HomeAppCategoryState> = _categoryState.asStateFlow()
 
@@ -291,6 +299,12 @@ class HomeAppButtonPreferences(context: Context) {
             if (name == null) remove(KEY_FILTER_MODE) else putString(KEY_FILTER_MODE, name)
         }
         _filterMode.value = name
+    }
+
+    /** Persist whether tapping an app takes the Lucky Patcher shortcut. */
+    fun setLpMode(enabled: Boolean) {
+        prefs.edit { putBoolean(KEY_LP_MODE, enabled) }
+        _lpMode.value = enabled
     }
 
     fun setCategoryViewMode(mode: HomeAppCategoryViewMode) {
@@ -575,6 +589,7 @@ class HomeAppButtonPreferences(context: Context) {
         private const val KEY_SOURCE_ORDERS = "source_orders"
         private const val KEY_SORT_MODE = "sort_mode"
         private const val KEY_FILTER_MODE = "filter_mode"
+        private const val KEY_LP_MODE = "lp_mode"
         private const val KEY_CATEGORIES = "categories"
         private const val KEY_CATEGORY_ASSIGNMENTS = "category_assignments"
         private const val KEY_CATEGORY_VIEW_MODE = "category_view_mode"

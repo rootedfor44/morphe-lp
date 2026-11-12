@@ -54,6 +54,7 @@ import app.morphe.manager.domain.repository.BlocklistRepository
 import app.morphe.manager.domain.repository.PatchBundleRepository
 import app.morphe.manager.domain.repository.SourceMuteRepository
 import app.morphe.manager.domain.repository.appsBrought
+import app.morphe.manager.lucky.LuckyRepository
 import app.morphe.manager.ui.screen.home.*
 import app.morphe.manager.ui.screen.patcher.IncompatiblePatcherVersionDialog
 import app.morphe.manager.ui.screen.shared.*
@@ -530,6 +531,14 @@ private fun SourcesPageContent(
                                     message = stringResource(R.string.search_no_results),
                                     icon = MaterialSymbols.Rounded.Search_off
                                 )
+                            }
+                        }
+
+                        // The bundled Lucky Patcher corpus is not a source in the store, so it has
+                        // a card of its own that says where it comes from and what it holds
+                        if (!search.isFiltering && !sourceFilter.isActive) {
+                            item(key = "lucky_builtin") {
+                                LuckyBuiltinSourceCard()
                             }
                         }
 
@@ -1565,3 +1574,84 @@ private fun CardNotice(
 @Composable
 internal fun rememberSourceHeaderColor(bundle: PatchBundleSource): Color =
     rememberBundleAccent(bundle) ?: MaterialTheme.colorScheme.primary
+
+/**
+ * The Lucky Patcher corpus as a card of its own: it is bundled with the app rather than fetched
+ * from a source, so it cannot be updated, reordered or removed like one.
+ */
+@Composable
+private fun LuckyBuiltinSourceCard() {
+    val lucky: LuckyRepository = koinInject()
+    val rules by lucky.rules.collectAsStateWithLifecycle()
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        border = CardBorder.of(MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+                            RoundedCornerShape(14.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = MaterialSymbols.Rounded.Build,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.sources_lucky_title),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Text(
+                        text = stringResource(R.string.sources_lucky_badge),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                LuckyStat(stringResource(R.string.sources_lucky_patches, rules.size))
+                LuckyStat(stringResource(R.string.sources_lucky_actions, lucky.actionCount))
+            }
+
+            Text(
+                text = stringResource(R.string.sources_lucky_description),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun LuckyStat(text: String) {
+    Surface(
+        shape = RoundedCornerShape(50),
+        color = MaterialTheme.colorScheme.secondaryContainer
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSecondaryContainer
+        )
+    }
+}

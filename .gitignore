@@ -20,6 +20,9 @@
 *.tar.gz
 *.rar
 
+# The bundled Lucky Patcher corpus ships with the app, unlike the archives above
+!app/src/main/assets/lp-custom-patches.zip
+
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 

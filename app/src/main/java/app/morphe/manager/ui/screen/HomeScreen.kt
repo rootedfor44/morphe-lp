@@ -154,6 +154,7 @@ fun HomeScreen(
     // while the cards are still being sorted by it
     val homeAppSortMode by homeAppButtonPrefs.sortMode.collectAsStateWithLifecycle()
     val homeAppFilterModePref by homeAppButtonPrefs.filterMode.collectAsStateWithLifecycle()
+    val homeAppLpMode by homeAppButtonPrefs.lpMode.collectAsStateWithLifecycle()
     val useExpertMode by prefs.useExpertMode.getAsState()
 
     // Held here rather than in the list, since the bars it docks over the list stand in for the
@@ -400,20 +401,30 @@ fun HomeScreen(
                         categoryState = homeAppCategoryState,
                         categoryViewMode = homeAppCategoryViewMode,
                         sourceGroups = homeAppSourceGroups,
+                        lpMode = homeAppLpMode,
                         // A queue nobody chose to keep yet is not stored, but selected apps still join it
                         batchQueuePending = savedBatchQueue != null || batchRun?.isPending == true,
                         showMoreAppsCard = showMoreAppsCard
                     ),
                     appActions = HomeAppActions(
                         onAppClick = { item ->
-                            homeViewModel.handleAppClick(
-                                packageName = item.packageName,
-                                availablePatches = availablePatches,
-                                android11BugActive = homeViewModel.android11BugActive,
-                                installedApp = item.installedApp
-                            )
-                            item.installedApp?.let {
-                                homeViewModel.patchFlow.openInstalledAppInfo(it.currentPackageName)
+                            val installed = item.installedApp
+                            if (homeAppLpMode && installed != null) {
+                                // Lucky Patcher shortcut: straight to the patch list, with the
+                                // APK already on the phone, instead of the APK question.
+                                homeViewModel.patchFlow.startWithInstalledApk(
+                                    installed.currentPackageName
+                                )
+                            } else {
+                                homeViewModel.handleAppClick(
+                                    packageName = item.packageName,
+                                    availablePatches = availablePatches,
+                                    android11BugActive = homeViewModel.android11BugActive,
+                                    installedApp = installed
+                                )
+                                installed?.let {
+                                    homeViewModel.patchFlow.openInstalledAppInfo(it.currentPackageName)
+                                }
                             }
                         },
                         onHideApp = { packageName -> homeViewModel.apps.hideApp(packageName) },
@@ -477,7 +488,8 @@ fun HomeScreen(
                         },
                         onOpenSources = { openPage(MainPage.SOURCES) },
                         onRefreshGreeting = onRefresh,
-                        onHideMoreAppsCard = { scope.launch { prefs.showMoreAppsCard.update(false) } }
+                        onHideMoreAppsCard = { scope.launch { prefs.showMoreAppsCard.update(false) } },
+                        onLpModeChange = { homeAppButtonPrefs.setLpMode(!homeAppLpMode) }
                     ),
                     greetingMessage = greetingMessage,
                     state = sectionState,

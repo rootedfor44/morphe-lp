@@ -23,6 +23,7 @@ import app.morphe.manager.domain.installer.RootInstaller
 import app.morphe.manager.domain.manager.*
 import app.morphe.manager.domain.repository.*
 import app.morphe.manager.domain.repository.PatchBundleRepository.Companion.DEFAULT_SOURCE_UID
+import app.morphe.manager.lucky.LuckyRepository
 import app.morphe.manager.patcher.patch.BundleAppMetadata
 import app.morphe.manager.patcher.patch.PatchBundleInfo
 import app.morphe.manager.ui.model.*
@@ -134,7 +135,8 @@ class HomeApps(
     private val appDataResolver: AppDataResolver,
     versionCatalog: AppVersionCatalog,
     private val localApkSources: LocalApkSources,
-    private val rootInstaller: RootInstaller
+    private val rootInstaller: RootInstaller,
+    private val lucky: LuckyRepository
 ) {
     // Updates available for installed apps, null until the first check lands
     private val _appUpdatesAvailable = MutableStateFlow<Map<String, AppPatchUpdate>?>(null)
@@ -542,6 +544,11 @@ class HomeApps(
         // One query for installed packages instead of one per card
         val installedPackages = pm.getInstalledPackages().mapTo(HashSet()) { it.packageName }
 
+        // Installed apps a bundled Lucky Patcher rule names, so the LP source has cards even
+        // when no Morphe bundle knows the app.
+        val luckyPackages = lucky.packages().filterTo(mutableSetOf()) { it in installedPackages }
+        packages += luckyPackages
+
         suspend fun buildItem(slot: HomeAppSlot): HomeAppItem {
             val packageName = slot.packageName
             val installedApp = slot.installedApp
@@ -627,7 +634,8 @@ class HomeApps(
                     ignoredVersion = ignoredVersions[packageName]
                 ),
                 patchCount = 0,
-                isClone = slot.isClone
+                isClone = slot.isClone,
+                hasLuckyPatch = packageName in luckyPackages
             )
         }
 

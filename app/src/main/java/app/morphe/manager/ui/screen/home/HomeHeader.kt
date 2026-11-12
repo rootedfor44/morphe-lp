@@ -10,9 +10,12 @@ import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.keyframes
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -23,11 +26,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import app.morphe.manager.R
 import app.morphe.manager.ui.screen.shared.Animations
 import app.morphe.manager.ui.screen.shared.Defaults
 import app.morphe.manager.ui.screen.shared.HeaderBar
+import app.morphe.manager.ui.screen.shared.HeaderControlDefaults
 import app.morphe.manager.ui.screen.shared.ListOptionsButton
 import app.morphe.manager.ui.screen.shared.ListReorder
 import app.morphe.manager.ui.screen.shared.MorpheWordmark
@@ -58,6 +63,8 @@ internal fun HomeHeader(
     sortOpen: Boolean,
     onSortClick: () -> Unit,
     onPatchFileClick: () -> Unit,
+    lpMode: Boolean,
+    onLpModeClick: () -> Unit,
     reorder: ListReorder? = null,
     // Set while the tour runs, which points at the button for other apps
     tour: OnboardingState? = null
@@ -106,6 +113,26 @@ internal fun HomeHeader(
                     onClick = alerts::restoreSnoozed,
                     style = TitleActionStyle.Neutral,
                     modifier = Modifier.ringOnArrival(this)
+                )
+            }
+
+            // Lucky Patcher shortcut: a tap on an app then patches the APK already on the phone,
+            // without the APK question, while the rest of the flow stays the one Morphe has
+            val lpState = stringResource(
+                if (lpMode) R.string.home_lp_mode_on else R.string.home_lp_mode_off
+            )
+            Box(
+                modifier = Modifier
+                    .size(HeaderControlDefaults.Size)
+                    .semantics { stateDescription = lpState }
+            ) {
+                TitleAction(
+                    icon = MaterialSymbols.Rounded.Auto_fix_high,
+                    contentDescription = stringResource(R.string.home_lp_mode),
+                    onClick = onLpModeClick,
+                    style = TitleActionStyle.Toggle,
+                    active = lpMode,
+                    modifier = Modifier.fillMaxSize()
                 )
             }
 

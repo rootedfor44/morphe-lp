@@ -21,6 +21,9 @@ kotlin {
 dependencies {
     implementation(libs.morphe.patcher)
     implementation(libs.arsclib)
+    implementation("com.android.tools.build:apkzlib:9.1.1")
+    // Patches of the Lucky Patcher engine rewrite DEX bodies, which needs dexlib2 directly.
+    implementation("com.github.MorpheApp.smali:smali-dexlib2:ac700e1942")
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.serialization.json)
 

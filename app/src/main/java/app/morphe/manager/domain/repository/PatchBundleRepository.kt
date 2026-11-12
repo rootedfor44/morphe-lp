@@ -30,6 +30,7 @@ import app.morphe.manager.data.room.bundles.Source
 import app.morphe.manager.domain.bundles.*
 import app.morphe.manager.domain.bundles.PatchBundleSource.Extensions.isHeldBack
 import app.morphe.manager.domain.manager.PreferencesManager
+import app.morphe.manager.lucky.LuckyRepository
 import app.morphe.manager.network.utils.APIError
 import app.morphe.manager.patcher.patch.BundleAppMetadata
 import app.morphe.manager.patcher.patch.PatchBundle
@@ -71,6 +72,7 @@ class PatchBundleRepository(
     private val prefs: PreferencesManager,
     private val blocklistRepository: BlocklistRepository,
     private val sourceMuteRepository: SourceMuteRepository,
+    private val lucky: LuckyRepository,
     db: AppDatabase,
 ) {
     private val dao = db.patchBundleDao()
@@ -1813,13 +1815,18 @@ class PatchBundleRepository(
     suspend fun updateCheckAndAwait(allowUnsafeNetwork: Boolean = false, reportUpToDate: Boolean = true) {
         awaitReady()
         awaitCurrentUpdateJob()
-        performRemoteUpdateWithResult(
-            UpdateRequest(
-                target = UpdateTarget(allEnabled = true),
-                allowUnsafeNetwork = allowUnsafeNetwork,
-                reportUpToDate = reportUpToDate,
+        coroutineScope {
+            // The Lucky Patcher corpus is one more source: it refreshes alongside the bundles and
+            // is not held back by one of them failing.
+            launch { lucky.updateIfStale(allowUnsafeNetwork) }
+            performRemoteUpdateWithResult(
+                UpdateRequest(
+                    target = UpdateTarget(allEnabled = true),
+                    allowUnsafeNetwork = allowUnsafeNetwork,
+                    reportUpToDate = reportUpToDate,
+                )
             )
-        )
+        }
     }
 
     /**
@@ -1839,6 +1846,7 @@ class PatchBundleRepository(
         // finds no sources and leaves the whole launch without updates. Started past the store
         // queue, so it does not wait out the disabled sources being read in the meantime
         awaitReady()
+        scope.launch { lucky.updateIfStale(allowUnsafeNetwork) }
         startRemoteUpdateJob(
             UpdateRequest(
                 target = UpdateTarget(allEnabled = true),

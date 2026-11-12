@@ -71,13 +71,15 @@ internal fun DialogHostScope.ApkAvailabilityDialog(
     isExpertMode: Boolean,
     savedApkInfo: SavedApkInfo?,
     installedApkInfo: InstalledApkInfo?,
+    deviceApkInfo: InstalledApkInfo?,
     installedAppVersion: String?,
     hiddenSourceCount: Int,
     onDismiss: () -> Unit,
     onHaveApk: () -> Unit,
     onNeedApk: () -> Unit,
     onUseSaved: () -> Unit,
-    onUseInstalled: () -> Unit
+    onUseInstalled: () -> Unit,
+    onUseDeviceApk: () -> Unit
 ) {
     // Every check below still runs against the full set: an APK already on the device stays
     // usable whatever the experimental toggle says, it is only the picker that narrows
@@ -152,6 +154,18 @@ internal fun DialogHostScope.ApkAvailabilityDialog(
                         // dropped before it reaches this dialog
                         textSuffix = "v${installedApkInfo.version}",
                         onClick = onUseInstalled,
+                        icon = MaterialSymbols.Rounded.Phone_android,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                // The APK on the phone is also offered when the patches do not target its
+                // version, so it can still be used instead of the picker or a download.
+                if (deviceApkInfo != null && (installedApkInfo == null || preferSavedOverInstalled)) {
+                    AppDialogOutlinedButton(
+                        text = stringResource(R.string.home_apk_use_phone),
+                        textSuffix = "v${deviceApkInfo.version}",
+                        onClick = onUseDeviceApk,
                         icon = MaterialSymbols.Rounded.Phone_android,
                         modifier = Modifier.fillMaxWidth()
                     )

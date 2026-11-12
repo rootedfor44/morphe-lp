@@ -67,6 +67,8 @@ data class HomeAppListUi(
     val categoryState: HomeAppCategoryState,
     val categoryViewMode: HomeAppCategoryViewMode,
     val sourceGroups: List<HomeAppSourceGroup>,
+    /** Whether tapping an app skips the APK question and patches the installed one. */
+    val lpMode: Boolean = false,
     /** Whether a batch queue is waiting to be started, which patching a selection adds to. */
     val batchQueuePending: Boolean = false,
     /** Whether the list ends on the card leading to the community patches. */
@@ -108,7 +110,8 @@ class HomeChromeActions(
     val onOtherAppsClick: () -> Unit,
     val onOpenSources: () -> Unit,
     val onRefreshGreeting: (() -> Unit)?,
-    val onHideMoreAppsCard: () -> Unit
+    val onHideMoreAppsCard: () -> Unit,
+    val onLpModeChange: () -> Unit
 )
 
 /**
@@ -161,6 +164,8 @@ internal fun SectionsLayout(
                 sortOpen = state.isListOptionsOpen,
                 onSortClick = { state.isListOptionsOpen = !state.isListOptionsOpen },
                 onPatchFileClick = chromeActions.onOtherAppsClick,
+                lpMode = apps.lpMode,
+                onLpModeClick = chromeActions.onLpModeChange,
                 reorder = footerBar.content?.listReorder(),
                 tour = onboardingState
             )

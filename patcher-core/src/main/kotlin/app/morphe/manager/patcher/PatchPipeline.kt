@@ -6,6 +6,7 @@
 package app.morphe.manager.patcher
 
 import app.morphe.manager.patcher.logger.Logger
+import app.morphe.manager.patcher.lucky.LuckyPatcherEngine
 import app.morphe.manager.patcher.patch.applyPatchOptions
 import app.morphe.manager.patcher.patch.keyedFor
 import app.morphe.manager.patcher.patch.optionValueFromJson
@@ -63,7 +64,7 @@ class PatchPipeline(
     private suspend fun patch(patches: List<Patch>) {
         val preparation = prepareInput()
         try {
-            val input = if (preparation.merged) {
+            var input = if (preparation.merged) {
                 // Moved rather than patched where it was merged, so it outlives the cleanup below
                 // and the app can keep it for repatching
                 withContext(Dispatchers.IO) {
@@ -83,6 +84,34 @@ class PatchPipeline(
                 } else {
                     emptySet()
                 }
+
+            if (request.lpPatches.isNotEmpty()) {
+                val lpOutput = File(request.temporaryDir, "lucky-patched.apk")
+                val changes = withContext(Dispatchers.IO) {
+                    LuckyPatcherEngine.apply(
+                        input = input,
+                        output = lpOutput,
+                        rulesDir = File(request.lpRulesDir),
+                        ruleNames = request.lpPatches,
+                        logger = logger::info
+                    )
+                }
+                logger.info("Lucky Patcher: $changes byte change(s)")
+                input = lpOutput
+                listener.stepCompleted()
+
+                if (patches.isEmpty()) {
+                    withContext(Dispatchers.IO) {
+                        Files.move(
+                            lpOutput.toPath(),
+                            File(request.outputFile).toPath(),
+                            StandardCopyOption.REPLACE_EXISTING
+                        )
+                    }
+                    listener.stepCompleted()
+                    return
+                }
+            }
 
             Session(
                 temporaryDir = File(request.temporaryDir),

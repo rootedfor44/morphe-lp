@@ -30,6 +30,7 @@ import app.morphe.manager.domain.installer.UninstallCancelledException
 import app.morphe.manager.domain.manager.*
 import app.morphe.manager.domain.repository.*
 import app.morphe.manager.domain.repository.PatchBundleRepository.LocalFileCheck
+import app.morphe.manager.lucky.LuckyRepository
 import app.morphe.manager.patcher.patch.*
 import app.morphe.manager.patcher.runtime.PatcherProcesses
 import app.morphe.manager.ui.model.*
@@ -91,6 +92,9 @@ class HomeViewModel(
     private val patcherProcesses: PatcherProcesses by inject()
     private val patchOptionsPrefs: PatchOptionsPreferencesManager by inject()
 
+    /** Lucky Patcher rules bundled with the manager. */
+    private val lucky: LuckyRepository by inject()
+
     /** The app list on the home screen. */
     val apps = HomeApps(
         scope = viewModelScope,
@@ -106,7 +110,8 @@ class HomeViewModel(
         appDataResolver = appDataResolver,
         versionCatalog = versionCatalog,
         localApkSources = localApkSources,
-        rootInstaller = rootInstaller
+        rootInstaller = rootInstaller,
+        lucky = lucky
     )
 
     val availablePatches = patchBundleRepository.bundleInfoFlow.map { it.values.sumOf { bundle -> bundle.patches.size } }

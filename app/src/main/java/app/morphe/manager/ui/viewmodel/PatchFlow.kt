@@ -30,6 +30,7 @@ import app.morphe.manager.domain.installer.InstallerManager
 import app.morphe.manager.domain.installer.RootInstaller
 import app.morphe.manager.domain.manager.*
 import app.morphe.manager.domain.repository.*
+import app.morphe.manager.lucky.LuckyRepository
 import app.morphe.manager.patcher.patch.*
 import app.morphe.manager.patcher.runtime.PatcherProcesses
 import app.morphe.manager.patcher.patch.PatchBundleInfo.Extensions.contributingAt
@@ -53,6 +54,8 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import java.io.File
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 
 /** Free storage below which patching is warned against before it starts. */
 const val LOW_DISK_SPACE_THRESHOLD_BYTES = 1_000_000_000L
@@ -127,6 +130,8 @@ data class PatchFlowSession(
     val bundleUid: Int? = null,
     val savedApk: SavedApkInfo? = null,
     val installedApk: InstalledApkInfo? = null,
+    /** The installed APK even when the selected patches do not target its version. */
+    val deviceApk: InstalledApkInfo? = null,
     val installedVersion: String? = null,
     val stockAppInstalled: Boolean? = null,
     val downloadUrl: String? = null,
@@ -200,9 +205,12 @@ class PatchFlow(
     private val recommendedVersions: StateFlow<Map<String, AppTarget>>,
     expertModePanel: SelectionPanelController,
     private val patcherProcesses: PatcherProcesses
-) : ApkDownloadHelperHost {
+) : ApkDownloadHelperHost, KoinComponent {
     /** The dialogs the flow has open, see [HomeDialog]. */
     val dialogs = HomeDialogStack()
+
+    /** The bundled Lucky Patcher source, offered next to the normal sources. */
+    private val lucky: LuckyRepository by inject()
 
     /** The run being set up, null while there is none. */
     var session by mutableStateOf<PatchFlowSession?>(null)
@@ -291,6 +299,26 @@ class PatchFlow(
         // Guard: if there is a pending bundle update on metered data, show the outdated-patches
         // dialog before proceeding with the actual APK selection flow.
         guardPatching { showPatchDialogInternal(packageName) }
+    }
+
+    /**
+     * Starts a run from the APK already installed on the phone, without asking which APK to use.
+     *
+     * Falls back to the normal APK question when nothing installed can be copied, so the shortcut
+     * never ends a run the picker or a download could still complete.
+     */
+    fun startWithInstalledApk(packageName: String) {
+        session = sessionFor(packageName)
+        patcherProcesses.startAhead()
+        guardPatching {
+            val source = withContext(Dispatchers.IO) { localApkSources.installed(packageName) }
+            applyInstalledAppSource(source)
+            if (session?.deviceApk == null) {
+                showPatchDialogInternal(packageName)
+            } else {
+                handleInstalledApkSelection()
+            }
+        }
     }
 
     /**
@@ -453,7 +481,8 @@ class PatchFlow(
                 installedVersion = source.version,
                 installedApk = source.apk
                     .takeIf { offersApk }
-                    .patchableBy(current.compatibleVersions)
+                    .patchableBy(current.compatibleVersions),
+                deviceApk = source.apk.takeIf { offersApk }
             )
         }
     }
@@ -470,7 +499,7 @@ class PatchFlow(
      */
     fun handleInstalledApkSelection() {
         val current = session
-        val installedInfo = current?.installedApk
+        val installedInfo = current?.installedApk ?: current?.deviceApk
         val packageName = current?.packageName
 
         if (installedInfo == null || packageName == null) {
@@ -1049,9 +1078,21 @@ class PatchFlow(
 
         // Everything this app has patches in, the sources it is kept from included: the expert
         // dialog offers those back, so it has to be told what it is hiding
-        val availableBundles = patchBundleRepository
-            .scopedBundleInfoFlow(selectedApp.packageName, selectedApp.version, selectedApp.versionCode)
-            .first()
+        val availableBundles = buildList {
+            addAll(
+                patchBundleRepository
+                    .scopedBundleInfoFlow(selectedApp.packageName, selectedApp.version, selectedApp.versionCode)
+                    .first()
+            )
+            runCatching {
+                val luckyBundle = lucky.bundleInfo().forPackage(
+                    selectedApp.packageName,
+                    selectedApp.version,
+                    selectedApp.versionCode
+                )
+                if (luckyBundle.patches.isNotEmpty()) add(luckyBundle)
+            }
+        }.distinctBy { it.uid }
 
         if (availableBundles.isEmpty()) {
             messages.show(R.string.home_no_patches_available)

@@ -264,13 +264,15 @@ private fun DialogHostScope.PatchFlowDialog(
             isExpertMode = homeViewModel.prefs.useExpertMode.getBlocking(),
             savedApkInfo = session.savedApk,
             installedApkInfo = session.installedApk,
+            deviceApkInfo = session.deviceApk,
             installedAppVersion = session.installedVersion,
             hiddenSourceCount = session.hiddenSources,
             onDismiss = flow::backFromApkSource,
             onHaveApk = storagePickerLauncher,
             onNeedApk = { apkDownloadHelpers.showInstructions(flow::showDownloadInstructions) },
             onUseSaved = flow::handleSavedApkSelection,
-            onUseInstalled = flow::handleInstalledApkSelection
+            onUseInstalled = flow::handleInstalledApkSelection,
+            onUseDeviceApk = flow::handleInstalledApkSelection
         )
 
         // Dialog 2: Download instructions

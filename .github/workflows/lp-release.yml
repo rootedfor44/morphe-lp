@@ -1,0 +1,117 @@
+name: LP Release
+
+# Releases this fork: the manager APK built against the latest upstream release, and the Lucky
+# Patcher corpus beside it, which is what the manager downloads to update its own patch source.
+#
+# Tags are `v<upstream>-lp.<build>` (see LuckyBuildVersion in the app), so two builds on the same
+# upstream release are told apart and a build older than upstream says which one it is behind.
+
+on:
+  workflow_dispatch:
+    inputs:
+      upstream_version:
+        description: 'Upstream Morphe Manager release this build is based on, e.g. 2.5.0'
+        required: true
+        type: string
+      lp_build:
+        description: 'Fork build number, e.g. 1'
+        required: true
+        default: '1'
+        type: string
+      draft:
+        description: 'Publish as a draft first'
+        type: boolean
+        default: true
+  push:
+    tags:
+      - 'v*-lp.*'
+
+jobs:
+  release:
+    name: Release
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          # 17 and 25 build the embedded JVMs, 21 stays the default that runs Gradle
+          java-version: |
+            17
+            25
+            21
+
+      - name: Cache Gradle
+        uses: burrunan/gradle-cache-action@v3
+
+      - name: Setup keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_B64 }}" | base64 -d > app/keystore.jks
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "lts/*"
+
+      - name: Resolve release tag
+        id: tag
+        env:
+          INPUT_UPSTREAM: ${{ inputs.upstream_version }}
+          INPUT_BUILD: ${{ inputs.lp_build }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [ -n "$INPUT_UPSTREAM" ]; then
+            TAG="v${INPUT_UPSTREAM}-lp.${INPUT_BUILD}"
+          else
+            TAG="$REF_NAME"
+          fi
+          case "$TAG" in
+            v*-lp.*) ;;
+            *) echo "Tag '$TAG' is not v<upstream>-lp.<build>"; exit 1 ;;
+          esac
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Build manager
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEYSTORE_ENTRY_ALIAS: ${{ secrets.KEYSTORE_ENTRY_ALIAS }}
+          KEYSTORE_ENTRY_PASSWORD: ${{ secrets.KEYSTORE_ENTRY_PASSWORD }}
+        run: ./gradlew :app:assembleRelease --console=plain
+
+      - name: Name manager APK
+        id: apk
+        run: |
+          APK="$(ls app/build/outputs/apk/release/*.apk | head -1)"
+          NAME="morphe-manager-${TAG_NAME}.apk"
+          cp "$APK" "$NAME"
+          echo "path=$NAME" >> "$GITHUB_OUTPUT"
+        env:
+          TAG_NAME: ${{ steps.tag.outputs.tag }}
+
+      - name: Zip Lucky Patcher corpus
+        run: |
+          cd app/src/main/assets
+          # Stored rather than deflated: the manager reads each rule out of it as it extracts
+          zip -0 -r "../../../../lp-custom-patches.zip" lp-custom-patches.zip
+          cd ../../../..
+          ls -l lp-custom-patches.zip
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: ${{ steps.tag.outputs.tag }}
+          draft: ${{ inputs.draft || false }}
+          generate_release_notes: true
+          # The corpus asset is what the manager's update check looks for
+          files: |
+            morphe-manager-${{ steps.tag.outputs.tag }}.apk
+            lp-custom-patches.zip
